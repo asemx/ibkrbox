@@ -1,0 +1,218 @@
+from datetime import datetime
+import sys
+import argparse
+import pickle
+import pandas as pd
+from ib_insync import *
+
+"""
+https://www.boxtrades.com/
+python ibkrbox.py -a 10000 -m 3 -i 192.168.1.97 -p 7496
+"""
+
+args = None
+
+
+def get_ib(ip, port):
+    ib = IB()
+    ib.connect(ip, port, clientId=19, timeout=10)
+    return ib
+
+
+def box_trade(
+    ib, expiry, strike1, strike2, limit, quantity=1, short=False, is_future=False
+):
+    assert strike1 < strike2, "incorrect strikes"
+    sym = "ES" if is_future else "SPX"
+    exchange = "GLOBEX" if is_future else "SMART"
+    mul = 50 if is_future else 100
+
+    if not short:
+        boxorder = ["BUY", "SELL", "SELL", "BUY"]
+    else:
+        boxorder = ["SELL", "BUY", "BUY", "SELL"]
+        assert limit < 0.0
+
+    boxspread = [
+        FuturesOption(sym, expiry, S, T, exchange=exchange, tradingClass="EW")
+        if is_future
+        else Option(sym, expiry, S, T, exchange=exchange, tradingClass="SPX")
+        for S in (strike1, strike2)
+        for T in ("C", "P")
+    ]
+    boxspread = ib.qualifyContracts(*boxspread)
+
+    legs = [
+        ComboLeg(conId=x[0].conId, ratio=1, action=x[1], exchange=exchange)
+        for x in zip(boxspread, boxorder)
+    ]
+    bag = Contract(
+        symbol=sym, secType="BAG", exchange=exchange, currency="USD", comboLegs=legs
+    )
+    _df = util.df(boxspread)[
+        ["symbol", "strike", "right", "lastTradeDateOrContractMonth"]
+    ]
+    _df.loc[:, "action"] = util.df(bag.comboLegs)["action"]
+    print(f"\nBox Legs:\n{_df}")
+    print(f"quantity: {quantity}, limit price: {limit}")
+    if not short:
+        print(
+            f"Lend {quantity*int(limit*mul)} today, receive {quantity*(strike2-strike1)*mul} on {expiry}"
+        )
+    else:
+        print(
+            f"Borrow {abs(quantity*int(limit*mul))} today, repay {quantity*(strike2-strike1)*mul} on {expiry}"
+        )
+    if args and args.show:
+        return None
+
+    trade = ib.placeOrder(bag, LimitOrder("BUY", quantity, limit))
+    ib.sleep(1)
+    return trade
+
+
+def get_rate(days):
+    # pull rates from treasury
+    assert days < 7 * 365
+    dt = datetime.now().strftime("%Y%m%d")
+    try:
+        rates_ = pd.read_pickle(f"{dt}.rates")
+        rates = list(rates_.iloc[0])[1:11]
+    except:
+        rates = None
+    if not rates:
+        rates_ = pd.read_csv(
+            f'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/all/{datetime.now().strftime("%Y%m")}?type=daily_treasury_yield_curve&field_tdr_date_value_month={datetime.now().strftime("%Y%m")}&page&_format=csv'
+        )
+        assert list(rates_.columns)[1:11] == [
+            "1 Mo",
+            "2 Mo",
+            "3 Mo",
+            "4 Mo",
+            "6 Mo",
+            "1 Yr",
+            "2 Yr",
+            "3 Yr",
+            "5 Yr",
+            "7 Yr",
+        ], "problem with treasury rates site, pass limit price manually"
+        rates = list(rates_.iloc[0])[1:11]
+        rates_.to_pickle(f"{dt}.rates")
+    assert rates != None
+    rate = rates[
+        [
+            n
+            for n, i in enumerate(
+                [30, 60, 90, 120, 180, 365 * 1, 365 * 2, 365 * 3, 365 * 5, 365 * 7]
+            )
+            if i > days
+        ][0]
+    ]
+    if args and args.show:
+        print(f"selected treasury rate: {rate}\n{rates_}")
+    return rate
+
+
+def get_expiry_es(ib, months):
+    exp = [
+        x.realExpirationDate
+        for x in ib.reqContractDetails(Future("ES", exchange="GLOBEX"))
+    ]
+    exp.sort()
+    exp = exp[: int(months / 3) + 2]
+    for i in exp:
+        spx = Future("ES", i, "GLOBEX")
+        spx = ib.qualifyContracts(spx)[0]
+        chains = ib.reqSecDefOptParams(spx.symbol, "GLOBEX", spx.secType, spx.conId)
+        chain = next(c for c in chains if c.exchange == "GLOBEX")
+        exps = [x.expirations for x in chains if x.tradingClass == "EW"][0]
+        if months < 1:
+            return exps[0]
+        for j in exps:
+            if (datetime.strptime(j, "%Y%m%d") - datetime.now()).days >= months * 30:
+                return j
+    assert False, "expiry not found"
+
+
+def get_expiry(ib, months):
+    spx = ib.qualifyContracts(Index("SPX", "CBOE"))[0]
+    chain = next(
+        c
+        for c in ib.reqSecDefOptParams(spx.symbol, "", spx.secType, spx.conId)
+        if c.tradingClass == "SPX" and c.exchange == "SMART"
+    )
+    expdays = [
+        abs(months * 30 - (datetime.strptime(exp, "%Y%m%d") - datetime.now()).days)
+        for exp in chain.expirations
+    ]
+    _, idx = min((v, i) for i, v in enumerate(expdays))
+    return chain.expirations[idx]
+
+
+def get_strikes(ib, amount, is_futures):
+    spx = ib.qualifyContracts(Index("SPX", "CBOE"))[0]
+    ib.reqMarketDataType(4)
+    [ticker] = ib.reqTickers(spx)
+    price = ticker.marketPrice()
+    # price = 3577.03
+    assert not util.isNan(price), "retry to get SPX market price"
+    spread = int(amount / (50.0 if is_futures else 100.0))
+    assert spread % 10 == 0, "use amount in 1000s"
+    strike = int(price / 100) * 100
+    if spread <= 200:
+        return strike, strike + spread
+    else:
+        rem = spread % 200
+        remhalf = (spread - rem) / 2
+        return strike - remhalf, strike + remhalf + rem
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", default="localhost", help="host")
+    parser.add_argument("-p", type=int, default=7496, help="port")
+    parser.add_argument("-s1", type=float, help="first strike")
+    parser.add_argument("-s2", type=float, help="second strike")
+    parser.add_argument("-r", type=float, help="optional rate to use")
+    parser.add_argument(
+        "-a", type=float, help="use amount per contract to calculate strikes"
+    )
+    parser.add_argument("-m", type=int, help="number of months, or provide expiry")
+    parser.add_argument("-e", help="expiry date")
+    parser.add_argument(
+        "-l",
+        type=float,
+        help="limit price, if not specified we will pull treasury rates",
+    )
+    parser.add_argument("-q", type=int, default=1, help="quantity")
+    parser.add_argument("--pos", action="store_true", help="show box positions")
+    parser.add_argument("--short", action="store_true", help="go short")
+    parser.add_argument("--es", action="store_true", help="Use ES futures")
+    parser.add_argument("-c", action="store_true", help="cancel existing box order")
+    parser.add_argument(
+        "--show", action="store_true", help="do not send order, just show"
+    )
+    args = parser.parse_args()
+    assert args.m != None or args.l != None, "pass limit price, or months to calc rates"
+    assert args.m != None or args.e != None, "pass months or expiry"
+    assert args.a != None or (
+        args.s1 != None and args.s2 != None
+    ), "pass strikes or amount per contract"
+    ib = get_ib(args.i, args.p)
+    assert ib.isConnected(), "IB connection error, please retry"
+    if not args.e:
+        args.e = get_expiry_es(ib, args.m) if args.es else get_expiry(ib, args.m)
+    if not args.s1:
+        args.s1, args.s2 = get_strikes(ib, args.a, args.es)
+    if not args.l:
+        days = (datetime.strptime(args.e, "%Y%m%d") - datetime.now()).days
+        if not args.r:
+            args.r = get_rate(days) + 0.30
+        args.l = (args.s2 - args.s1) / (1 + args.r / 100.0) ** (days / 365)
+    args.l = round(0.05 * round(args.l / 0.05), 2)
+    args.l = -args.l if args.short else args.l
+    print(f"\napplication arguments:\n{args}")
+    trade = box_trade(ib, args.e, args.s1, args.s2, args.l, args.q, args.short, args.es)
+    if trade != None:
+        ib.sleep(5)
+        print(util.df(trade.log))

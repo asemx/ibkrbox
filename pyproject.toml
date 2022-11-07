@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "ibkrbox"
+version = "0.5.0"
+description = "box spread utility for interactive brokers"
+documentation = "https://github.com/asemx/ibkrbox/blob/main/README.md"
+authors = ["asemx <998264+asemx@users.noreply.github.com>"]
+readme = "README.md"
+homepage = "https://github.com/asemx/ibkrbox"
+repository = "https://github.com/asemx/ibkrbox.git"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+ib-insync = "^0.9.71"
+
+[tool.poetry.scripts]
+ibkrbox = 'ibkrbox.cli:cli'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
