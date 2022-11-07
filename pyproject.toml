@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ibkrbox"
-version = "0.5.0"
+version = "0.1.0"
 description = "box spread utility for interactive brokers"
 documentation = "https://github.com/asemx/ibkrbox/blob/main/README.md"
 authors = ["asemx <998264+asemx@users.noreply.github.com>"]
@@ -11,6 +11,9 @@ repository = "https://github.com/asemx/ibkrbox.git"
 [tool.poetry.dependencies]
 python = "^3.8"
 ib-insync = "^0.9.71"
+click = "^8.1.3"
+click-log = "^0.4.0"
+pandas = "^1.5.1"
 
 [tool.poetry.scripts]
 ibkrbox = 'ibkrbox.cli:cli'

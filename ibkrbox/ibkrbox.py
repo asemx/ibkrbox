@@ -75,7 +75,8 @@ def box_trade(
     return trade
 
 
-def get_rate(days, show=True):
+def get_rate(expiry, show=True):
+    days = (datetime.strptime(expiry, "%Y%m%d") - datetime.now()).days
     # pull rates from treasury
     assert days < 7 * 365
     dt = datetime.now().strftime("%Y%m%d")
@@ -159,11 +160,18 @@ def get_expiry(ib, months):
 
 def get_strikes(ib, amount, is_futures):
     spx = ib.qualifyContracts(Index("SPX", "CBOE"))[0]
-    ib.reqMarketDataType(4)
-    [ticker] = ib.reqTickers(spx)
-    price = ticker.marketPrice()
-    price = 3577.03
-    print(f'SPX last close: {price}')
+    ib.reqMarketDataType(3)
+    bars = ib.reqHistoricalData(
+        spx,
+        endDateTime="",
+        durationStr="1 D",
+        barSizeSetting="1 day",
+        whatToShow="TRADES",
+        useRTH=True,
+    )
+    price = bars[-1].close
+    # price = 2000.0
+    print(f"SPX last close: {price}")
     assert not util.isNan(price) and price > 100, "invalid SPX market price"
     spread = int(amount / (50.0 if is_futures else 100.0))
     assert spread % 10 == 0, "use amount in 1000s"
@@ -179,7 +187,7 @@ def get_strikes(ib, amount, is_futures):
 def get_limit(expiry, rate, s1, s2, is_future=False):
     days = (datetime.strptime(expiry, "%Y%m%d") - datetime.now()).days
     if not rate:
-        rate = get_rate(days) + 0.30
+        rate = get_rate(expiry) + 0.30
     limit = (s2 - s1) / (1 + rate / 100.0) ** (days / 365)
     incr = 0.25 if is_future else 0.05
     limit = round(incr * round(limit / incr), 2)

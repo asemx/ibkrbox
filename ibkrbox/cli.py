@@ -55,6 +55,8 @@ def cli(
     if not s1:
         s1, s2 = get_strikes(ib, amount, es)
     if not limit:
+        if not rate:
+            rate = get_rate(expiry) + 0.30
         limit = get_limit(expiry, rate, s1, s2, es)
     limit = -abs(limit) if short else abs(limit)
     if show:
