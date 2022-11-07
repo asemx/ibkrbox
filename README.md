@@ -1,7 +1,9 @@
 # ibkrbox
 Constructs a Box Spread combo order for SPX or ES futures option, only required arguments are amount you want to lend or borrow , and for how many months.
 
-This utility will automatically look up current treasury rates, and add .30 to get the yield rate. This will be used to calculate limit price.
+This utility will automatically look up current treasury rates, and add .30 to get the yield rate. This will be used to calculate limit price. rate or limit price can be overridden as needed.
+
+It can also automatically calculate the right strikes and spread, with approximate expiry for given duration. All of these can be overridden as needed.
 
 This utility is easy to install and use with existing IBKR TWS or gateway session. Just make sure to enable API access in the GUI of IBKR TWS or gateway.
 
