@@ -28,7 +28,7 @@ def box_trade(
 ):
     assert strike1 < strike2, "incorrect strikes"
     sym = "ES" if is_future else "SPX"
-    exchange = "GLOBEX" if is_future else "SMART"
+    exchange = "CME" if is_future else "SMART"
     mul = 50 if is_future else 100
 
     if not short:
@@ -125,15 +125,15 @@ def get_rate(expiry, show=True):
 def get_expiry_es(ib, months):
     exp = [
         x.realExpirationDate
-        for x in ib.reqContractDetails(Future("ES", exchange="GLOBEX"))
+        for x in ib.reqContractDetails(Future("ES", exchange="CME"))
     ]
     exp.sort()
     exp = exp[: int(months / 3) + 2]
     for i in exp:
-        spx = Future("ES", i, "GLOBEX")
+        spx = Future("ES", i, "CME")
         spx = ib.qualifyContracts(spx)[0]
-        chains = ib.reqSecDefOptParams(spx.symbol, "GLOBEX", spx.secType, spx.conId)
-        chain = next(c for c in chains if c.exchange == "GLOBEX")
+        chains = ib.reqSecDefOptParams(spx.symbol, "CME", spx.secType, spx.conId)
+        chain = next(c for c in chains if c.exchange == "CME")
         exps = [x.expirations for x in chains if x.tradingClass == "EW"][0]
         if months < 1:
             return exps[0]

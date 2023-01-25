@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ibkrbox"
-version = "0.3.0"
+version = "0.4.0"
 description = "box spread utility for interactive brokers"
 documentation = "https://github.com/asemx/ibkrbox/blob/main/README.md"
 authors = ["asemx <998264+asemx@users.noreply.github.com>"]

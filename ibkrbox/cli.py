@@ -52,6 +52,10 @@ def cli(
     assert ib.isConnected(), "IB connection error, please retry"
     if not expiry:
         expiry = get_expiry_es(ib, months) if es else get_expiry(ib, months)
+    if s1 and not s2:
+        s2 = s1 + int(amount / (50.0 if es else 100.0))
+    if s2 and not s1:
+        s1 = s2 - int(amount / (50.0 if es else 100.0))
     if not s1:
         s1, s2 = get_strikes(ib, amount, es)
     if not limit:
@@ -59,12 +63,10 @@ def cli(
             rate = get_rate(expiry) + 0.30
         limit = get_limit(expiry, rate, s1, s2, es)
     limit = -abs(limit) if short else abs(limit)
-    if show:
-        print(
-            f"\nUsing expiry, s1, s2, limit, quantity, short, es: {expiry}, {s1}, {s2}, {limit}, {quantity}, {short}, {es}"
+    print(f"\nUsing expiry, s1, s2, limit, quantity, short, es: {expiry}, {s1}, {s2}, {limit}, {quantity}, {short}, {es}"
         )
     trade = box_trade(ib, expiry, s1, s2, limit, quantity, short, es, show)
-    if rate and show: print(f'rate: {rate}')
+    if rate: print(f'rate: {rate}')
     if trade != None:
         ib.sleep(5)
         print(util.df(trade.log))
