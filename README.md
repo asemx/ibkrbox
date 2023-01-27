@@ -17,17 +17,25 @@ pip install ibkrbox
 ```code
 ibkrbox -h
 ```
-<img width="629" alt="image" src="https://user-images.githubusercontent.com/998264/200383898-c9433221-0107-4366-9b06-60179233f5c1.png">
+<img width="630" alt="image" src="https://user-images.githubusercontent.com/998264/215016906-f72926c9-bada-4430-a2bb-c07db5ea69c6.png">
 
 
 ### 1. construct a combo SPX Box Spread lending for 50K, duration 4 months (use "--execute" option to send the order)
 ```code
 ibkrbox -a 50000 -m 4
 ```
-<img width="795" alt="image" src="https://user-images.githubusercontent.com/998264/200384213-06b1e995-6cfb-4c68-a022-53385b3e494f.png">
+<img width="474" alt="image" src="https://user-images.githubusercontent.com/998264/215017182-3577e49f-7787-41c9-b500-303b6afded19.png">
 
 
-### 2. construct a combo SPX Box Spread borrowing for 50K, duration 4 months, and display.
+### 2. same as above but using Options on ES Futures (use "--execute" option to send the order)
+```code
+ibkrbox -a 50000 -m 4 --es
+```
+<img width="469" alt="image" src="https://user-images.githubusercontent.com/998264/215017485-1fb9cd8c-bf0c-44e8-8775-7844831a8f85.png">
+
+
+
+### 3. construct a combo SPX Box Spread borrowing for 50K, duration 4 months (use "--execute" option to send the order) 
 ```code
 ibkrbox -a 50000 -m 4 --short
 ```
