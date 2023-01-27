@@ -36,12 +36,12 @@ CONTEXT_SETTINGS = dict(
 @click.option("-q", "--quantity", default=1, help="num contracts", type=int)
 @click.option("--short", help="sell the box to loan", is_flag=True)
 @click.option("--es", help="use ES options", is_flag=True)
-@click.option("--show", help="show only, do not send order", is_flag=True)
+@click.option("--execute", help="send order for execution", is_flag=True)
 def cli(
-    ip, port, s1, s2, rate, amount, months, expiry, limit, quantity, short, es, show
+    ip, port, s1, s2, rate, amount, months, expiry, limit, quantity, short, es, execute
 ):
     """Construct a Box Spread using SPX or ES options.
-    Use "show" option to display the order only, without executing.
+    Use "execute" option to send order for execution.
     """
     assert months != None or limit != None, "pass limit price, or months to calc limit"
     assert months != None or expiry != None, "pass expiry, or months to calc expiry"
@@ -65,7 +65,7 @@ def cli(
     limit = -abs(limit) if short else abs(limit)
     print(f"\nUsing expiry, s1, s2, limit, quantity, short, es: {expiry}, {s1}, {s2}, {limit}, {quantity}, {short}, {es}"
         )
-    trade = box_trade(ib, expiry, s1, s2, limit, quantity, short, es, show)
+    trade = box_trade(ib, expiry, s1, s2, limit, quantity, short, es, not execute)
     if rate: print(f'rate: {rate}')
     if trade != None:
         ib.sleep(5)

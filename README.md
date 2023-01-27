@@ -20,14 +20,14 @@ ibkrbox -h
 <img width="629" alt="image" src="https://user-images.githubusercontent.com/998264/200383898-c9433221-0107-4366-9b06-60179233f5c1.png">
 
 
-### 1. construct a combo SPX Box Spread lending for 50K, duration 4 months, and display ("--show" option ensures it will not be executed)
+### 1. construct a combo SPX Box Spread lending for 50K, duration 4 months (use "--execute" option to send the order)
 ```code
-ibkrbox -a 50000 -m 4 --show
+ibkrbox -a 50000 -m 4
 ```
 <img width="795" alt="image" src="https://user-images.githubusercontent.com/998264/200384213-06b1e995-6cfb-4c68-a022-53385b3e494f.png">
 
 
 ### 2. construct a combo SPX Box Spread borrowing for 50K, duration 4 months, and display.
 ```code
-ibkrbox -a 50000 -m 4 --show --short
+ibkrbox -a 50000 -m 4 --short
 ```
