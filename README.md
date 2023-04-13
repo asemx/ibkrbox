@@ -7,6 +7,8 @@ It can also automatically calculate the right strikes and spread, with approxima
 
 This utility is easy to install and use with existing IBKR TWS or gateway session. Just make sure to enable API access in the GUI of IBKR TWS or gateway.
 
+Please file a issue if you notice any problem(s).
+
 ## Installation
 ```code
 pip install ibkrbox
@@ -20,14 +22,16 @@ ibkrbox -h
 <img width="630" alt="image" src="https://user-images.githubusercontent.com/998264/215016906-f72926c9-bada-4430-a2bb-c07db5ea69c6.png">
 
 
-### 1. construct a combo SPX Box Spread lending for 50K, duration 4 months (use "--execute" option to send the order)
+### 1. construct a combo SPX Box Spread lending for 50K, duration 4 months (use "--execute" option to send the order to IBKR)
+This will not execute the order, so you can safely run this.
 ```code
 ibkrbox -a 50000 -m 4
 ```
 <img width="474" alt="image" src="https://user-images.githubusercontent.com/998264/215017182-3577e49f-7787-41c9-b500-303b6afded19.png">
 
 
-### 2. same as above but using Options on ES Futures (use "--execute" option to send the order)
+### 2. same as above but using Options on ES Futures (use "--execute" option to send the order to IBKR)
+This will not execute the order, so you can safely run this.
 ```code
 ibkrbox -a 50000 -m 4 --es
 ```
@@ -35,7 +39,8 @@ ibkrbox -a 50000 -m 4 --es
 
 
 
-### 3. construct a combo SPX Box Spread borrowing for 50K, duration 4 months (use "--execute" option to send the order) 
+### 3. construct a combo SPX Box Spread borrowing for 50K, duration 4 months (use "--execute" option to send the order to IBKR) 
+This will not execute the order, so you can safely run this.
 ```code
 ibkrbox -a 50000 -m 4 --short
 ```
