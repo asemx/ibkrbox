@@ -19,15 +19,14 @@ pip install ibkrbox
 ```code
 ibkrbox -h
 ```
-<img width="630" alt="image" src="https://user-images.githubusercontent.com/998264/215016906-f72926c9-bada-4430-a2bb-c07db5ea69c6.png">
-
+<img width="630" alt="image" src="https://github.com/asemx/ibkrbox/assets/998264/0e6bf269-8bb5-4387-8d50-b29105095ef3">
 
 ### 1. construct a combo SPX Box Spread lending for 50K, duration 4 months (use "--execute" option to send the order to IBKR)
-This will not execute the order, so you can safely run this.
+This will not execute the order, so you can safely run this. When executing, it will retry orders until "offset" limit.
 ```code
-ibkrbox -a 50000 -m 4
+ibkrbox -a 50000 -m 4 --offset .50
 ```
-<img width="474" alt="image" src="https://user-images.githubusercontent.com/998264/215017182-3577e49f-7787-41c9-b500-303b6afded19.png">
+<img width="929" alt="image" src="https://github.com/asemx/ibkrbox/assets/998264/b73d35d3-a3c0-4a7f-aaa6-3ffa40afab43">
 
 
 ### 2. same as above but using Options on ES Futures (use "--execute" option to send the order to IBKR)
