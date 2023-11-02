@@ -5,15 +5,35 @@ import pickle
 import pandas as pd
 from ib_insync import *
 import platform
+import numpy as np
+import math
 import tempfile
 from pathlib import Path
 
-
-def get_ib(ip, port):
+def get_ib(ip, port, acc=""):
     ib = IB()
-    ib.connect(ip, port, clientId=19, timeout=10)
+    ib.connect(ip, port, clientId=19, timeout=20, account=acc)
     return ib
 
+def get_last(ib, con, dur="3600 S", bar="1 min", rth = False):
+    ib.reqMarketDataType(3)
+    try:
+        bars = ib.reqHistoricalData(
+            con,
+            endDateTime="",
+            durationStr=dur,
+            barSizeSetting=bar,
+            whatToShow="TRADES",
+            useRTH=rth,
+        )
+    except:
+        bars = []
+    if len(bars) == 0:
+        last = math.nan
+        if "D" not in dur:
+            last = get_last(ib, con, dur="4 D", bar="1 day")
+        return last
+    return bars[-1].close
 
 def box_trade(
     ib,
@@ -25,6 +45,9 @@ def box_trade(
     short=False,
     is_future=False,
     show=True,
+    acc = "",
+    timeout = 10,
+    max=None
 ):
     assert strike1 < strike2, "incorrect strikes"
     sym = "ES" if is_future else "SPX"
@@ -33,9 +56,12 @@ def box_trade(
 
     if not short:
         boxorder = ["BUY", "SELL", "SELL", "BUY"]
+        assert limit > 0.0
+        assert max >= limit
     else:
         boxorder = ["SELL", "BUY", "BUY", "SELL"]
         assert limit < 0.0
+        assert max >= limit
 
     boxspread = [
         FuturesOption(sym, expiry, S, T, exchange=exchange, tradingClass="EW")
@@ -58,7 +84,6 @@ def box_trade(
     ]
     _df.loc[:, "action"] = util.df(bag.comboLegs)["action"]
     print(f"\nBox Legs:\n{_df}")
-    print(f"quantity: {quantity}, limit price: {limit}")
     if not short:
         print(
             f"Lend {quantity*int(limit*mul)} today, receive {quantity*(strike2-strike1)*mul} on {expiry}"
@@ -70,8 +95,26 @@ def box_trade(
     if show:
         return None
 
-    trade = ib.placeOrder(bag, LimitOrder("BUY", quantity, limit))
-    ib.sleep(1)
+    trade = None
+    mintick = .05
+    for limit in np.arange(limit, max+mintick, mintick):
+        if quantity == 0: break
+        print(f'placing limit order for {quantity} at {limit:.2f}. Waiting for {timeout}s...')
+        trade = ib.placeOrder(bag, LimitOrder("BUY", quantity, limit, account=acc))
+        try:
+            ib.sleep(timeout)
+        except:
+            ib.cancelOrder(trade.order)
+            return None
+        if trade.filled() != 0:
+            print(f'order filled for {trade.filled()} at {trade.orderStatus.avgFillPrice:.2f}')
+        if trade.filled() != quantity:
+            print(f'cancelling unfilled order, remaining quantity {quantity}')
+            ib.cancelOrder(trade.order)
+            ib.sleep(3)
+        else:
+            break
+        quantity -= trade.filled()
     return trade
 
 
@@ -90,9 +133,9 @@ def get_rate(expiry, show=True):
     except:
         rates = None
     if not rates:
-        rates_ = pd.read_csv(
-            f'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/all/{datetime.now().strftime("%Y%m")}?type=daily_treasury_yield_curve&field_tdr_date_value_month={datetime.now().strftime("%Y%m")}&page&_format=csv'
-        )
+        url_ = f'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/all/{datetime.now().strftime("%Y%m")}?type=daily_treasury_yield_curve&field_tdr_date_value_month={datetime.now().strftime("%Y%m")}&page&_format=csv'
+        # print(url_)
+        rates_ = pd.read_csv(url_)
         assert list(rates_.columns)[1:11] == [
             "1 Mo",
             "2 Mo",
@@ -160,17 +203,7 @@ def get_expiry(ib, months):
 
 def get_strikes(ib, amount, is_futures):
     spx = ib.qualifyContracts(Index("SPX", "CBOE"))[0]
-    ib.reqMarketDataType(3)
-    bars = ib.reqHistoricalData(
-        spx,
-        endDateTime="",
-        durationStr="1 D",
-        barSizeSetting="1 day",
-        whatToShow="TRADES",
-        useRTH=True,
-    )
-    price = bars[-1].close
-    # price = 2000.0
+    price = get_last(ib, spx)
     print(f"SPX last close: {price}")
     assert not util.isNan(price) and price > 100, "invalid SPX market price"
     spread = int(amount / (50.0 if is_futures else 100.0))
@@ -189,6 +222,6 @@ def get_limit(expiry, rate, s1, s2, is_future=False):
     if not rate:
         rate = get_rate(expiry) + 0.30
     limit = (s2 - s1) / (1 + rate / 100.0) ** (days / 365)
-    incr = 0.25 if is_future else 0.05
-    limit = round(incr * round(limit / incr), 2)
+    mintick = 0.05
+    limit = mintick * round(limit / mintick)
     return limit
