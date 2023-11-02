@@ -74,7 +74,7 @@ def cli(
         max = limit + offset
     mintick = 0.05
     limit, max = mintick * round(limit / mintick), mintick * round(max / mintick)
-    print(f"\nUsing expiry, s1, s2, price limit/max, quantity, short, es: {expiry}, {s1}, {s2}, {limit:.2f}/{max}, {quantity}, {short}, {es}"
+    print(f"\nUsing expiry, s1, s2, price limit/max, quantity, short, es: {expiry}, {s1}, {s2}, {limit:.2f}/{max:.2f}, {quantity}, {short}, {es}"
         )
     if rate: print(f'using interest rate: {rate:.2f}')
     trade = box_trade(ib, expiry, s1, s2, limit, quantity, short, es, not execute, acc, timeout, max)
